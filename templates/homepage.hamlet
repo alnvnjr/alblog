@@ -1,0 +1,27 @@
+<div .container>    
+    <div .row>
+        <div .panel .panel-default>
+            <div .panel-heading>
+                <h1>
+                    All Posts
+            <div .panel-body>
+                $forall Entity id post <- allPosts
+                <div .col-md-6 .col-md-6>
+                    <div .cliente>
+                        <a href=@{PostDetailsR id}> #{blogPostTitle post}
+<div .container> 
+    <div .col-md-6 .col-md-6>
+        <div .panel .panel-default>
+            <div .panel-heading>
+                <h1>
+                    Welcome
+            <div .panel-body>
+                <div .about-me>
+                    Hi and thanks for visiting! Enjoy the notes of an easily-distracted,
+                    master of none! Please reach out to me with any thoughts
+    <div .col-md-6 .col-md-6>
+        <div .panel .panel-default>
+            <div .panel-body>
+                <h1 .page-header>
+                    Allen VanNoppen
+ 
