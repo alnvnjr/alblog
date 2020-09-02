@@ -15,16 +15,19 @@ import Database.Persist.Sql (ConnectionPool, runSqlPool)
 import Text.Hamlet          (hamletFile)
 import Text.Jasmine         (minifym)
 import Control.Monad.Logger (LogSource)
+import Text.Read
 
 -- Used only when in "auth-dummy-login" setting is enabled.
 import Yesod.Auth.Dummy
 
 import Yesod.Auth.OpenId    (authOpenId, IdentifierType (Claimed))
+import Yesod.Auth.OAuth2.GitHub
 import Yesod.Default.Util   (addStaticContentExternal)
 import Yesod.Core.Types     (Logger)
 import qualified Yesod.Core.Unsafe as Unsafe
 import qualified Data.CaseInsensitive as CI
 import qualified Data.Text.Encoding as TE
+import qualified Data.Text as T
 
 -- | The foundation datatype for your application. This can be a good place to
 -- keep settings and values requiring initialization before your application
@@ -35,6 +38,7 @@ data App = App
     , appStatic      :: Static -- ^ Settings for static file serving.
     , appConnPool    :: ConnectionPool -- ^ Database connection pool.
     , appHttpManager :: Manager
+    , appGithubOAuthKeys :: OAuthKeys
     , appLogger      :: Logger
     }
 
@@ -115,11 +119,7 @@ instance Yesod App where
                     , menuItemRoute = HomeR
                     , menuItemAccessCallback = True
                     }
-                , NavbarLeft $ MenuItem
-                    { menuItemLabel = "Profile"
-                    , menuItemRoute = ProfileR
-                    , menuItemAccessCallback = isJust muser
-                    }
+                
                 , NavbarRight $ MenuItem
                     { menuItemLabel = "Login"
                     , menuItemRoute = AuthR LoginR
@@ -161,15 +161,18 @@ instance Yesod App where
         -> Handler AuthResult
     -- Routes not requiring authentication.
     isAuthorized (AuthR _) _ = return Authorized
-    isAuthorized CommentR _ = return Authorized
+
     isAuthorized HomeR _ = return Authorized
     isAuthorized FaviconR _ = return Authorized
     isAuthorized RobotsR _ = return Authorized
     isAuthorized (StaticR _) _ = return Authorized
+    isAuthorized (PostDetailsR _) _ = return Authorized
 
     -- the profile route requires that the user is authenticated, so we
     -- delegate to that function
-    isAuthorized ProfileR _ = isAuthenticated
+    
+    isAuthorized PostR _ = isAuthenticated
+    
 
     -- This function creates static content files in the static folder
     -- and names them based on a hash of their content. This allows
@@ -217,7 +220,7 @@ instance YesodBreadcrumbs App where
         -> Handler (Text, Maybe (Route App))
     breadcrumb HomeR = return ("Home", Nothing)
     breadcrumb (AuthR _) = return ("Login", Just HomeR)
-    breadcrumb ProfileR = return ("Profile", Just HomeR)
+    
     breadcrumb  _ = return ("home", Nothing)
 
 -- How to run database actions.
@@ -255,12 +258,17 @@ instance YesodAuth App where
                 { userIdent = credsIdent creds
                 , userPassword = Nothing
                 }
-
+    authPlugins m = 
+        [
+        oauth2GitHub
+            (readMaybe (oauthKeysClientId $ appGithubOAuthKeys m) :: Text)
+            (readMaybe (oauthKeysClientSecret $ appGithubOAuthKeys m) :: Text)
+        ]
     -- You can add other plugins like Google Email, email or OAuth here
-    authPlugins :: App -> [AuthPlugin App]
-    authPlugins app = [authOpenId Claimed []] ++ extraAuthPlugins
+    -- authPlugins :: App -> [AuthPlugin App]
+    -- authPlugins app = [authOpenId Claimed []] ++ extraAuthPlugins
         -- Enable authDummy login if enabled.
-        where extraAuthPlugins = [authDummy | appAuthDummyLogin $ appSettings app]
+        -- where extraAuthPlugins = [authDummy | appAuthDummyLogin $ appSettings app]
 
 -- | Access function to determine if a user is logged in.
 isAuthenticated :: Handler AuthResult
@@ -270,6 +278,8 @@ isAuthenticated = do
         Nothing -> Unauthorized "You must login to access this page"
         Just _ -> Authorized
 
+isAdmin :: User -> Bool
+isAdmin user = userEmail user == "feioaccel@gmail.com"
 instance YesodAuthPersist App
 
 -- This instance is required to use forms. You can modify renderMessage to

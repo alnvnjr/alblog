@@ -38,12 +38,14 @@ import Network.Wai.Middleware.RequestLogger (Destination (Logger),
 import System.Log.FastLogger                (defaultBufSize, newStdoutLoggerSet,
                                              toLogStr)
 
+import System.Environment
 -- Import all relevant handler modules here.
 -- Don't forget to add new modules to your cabal file!
 import Handler.Common
 import Handler.Home
-import Handler.Comment
-import Handler.Profile
+import Handler.Post
+import Handler.PostDetails
+import LoadEnv
 
 -- This line actually creates our YesodDispatch instance. It is the second half
 -- of the call to mkYesodData which occurs in Foundation.hs. Please see the
@@ -58,11 +60,15 @@ makeFoundation :: AppSettings -> IO App
 makeFoundation appSettings = do
     -- Some basic initializations: HTTP connection manager, logger, and static
     -- subsite.
+    loadEnv
     appHttpManager <- getGlobalManager
     appLogger <- newStdoutLoggerSet defaultBufSize >>= makeYesodLogger
     appStatic <-
         (if appMutableStatic appSettings then staticDevel else static)
         (appStaticDir appSettings)
+    appGithubOAuthKeys <- getOAuthKeys
+  
+
 
     -- We need a log function to create a connection pool. We need a connection
     -- pool to create our foundation. And we need our foundation to get a
@@ -86,7 +92,11 @@ makeFoundation appSettings = do
 
     -- Return the foundation
     return $ mkFoundation pool
-
+        where
+            getOAuthKeys :: IO OAuthKeys
+            getOAuthKeys = OAuthKeys
+                <$>  getEnv ( "GITHUB_OAUTH_CLIENT_ID" )
+                <*>  getEnv ( "GITHUB_OAUTH_CLIENT_SECRET")
 -- | Convert our foundation to a WAI Application by calling @toWaiAppPlain@ and
 -- applying some additional middlewares.
 makeApplication :: App -> IO Application

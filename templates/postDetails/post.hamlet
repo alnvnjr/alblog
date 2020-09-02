@@ -1,0 +1,7 @@
+
+<div .panel .panel-default>
+   <div .panel-heading>
+    <h1>
+      #{blogPostTitle blogPost}
+   <div .panel-body>
+      #{blogPostContent blogPost}
